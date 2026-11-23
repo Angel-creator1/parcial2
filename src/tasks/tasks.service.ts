@@ -1,0 +1,40 @@
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { isValidObjectId, Model } from 'mongoose';
+import { Task, TaskDocument } from './schemas/task.schema';
+import { CreateTaskDto } from './dto/create-task.dto';
+import { UsersService } from '../users/users.service';
+
+@Injectable()
+export class TasksService {
+  constructor(
+    @InjectModel(Task.name) private readonly taskModel: Model<TaskDocument>,
+    private readonly usersService: UsersService,
+  ) {}
+
+  async create(createTaskDto: CreateTaskDto): Promise<Task> {
+    if (!isValidObjectId(createTaskDto.userId)) {
+      throw new BadRequestException('Id de usuario invalido');
+    }
+    // el UsersService lanza NotFoundException si no existe el usuario
+    await this.usersService.findById(createTaskDto.userId);
+
+    return this.taskModel.create(createTaskDto);
+  }
+
+  async findAll(): Promise<Task[]> {
+    return this.taskModel.find().exec();
+  }
+
+  async findById(id: string): Promise<Task> {
+    const task = await this.taskModel.findById(id).exec();
+    if (!task) {
+      throw new NotFoundException(`Tarea con ID ${id} no encontrada`);
+    }
+    return task;
+  }
+}
